@@ -1,0 +1,4 @@
+settings/*.toml
+node_modules/
+.DS_Store
+.cache/

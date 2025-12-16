@@ -1,0 +1,8 @@
+[project]
+name = "stacks-micro-fund"
+requirements = []
+clarity_version = "3"
+
+[contracts.micro-fund]
+path = "contracts/micro-fund.clar"
+depends_on = []
