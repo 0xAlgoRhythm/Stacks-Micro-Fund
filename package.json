@@ -1,0 +1,14 @@
+{
+  "name": "stacks-micro-fund",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "test": "vitest"
+  },
+  "devDependencies": {
+    "@stacks/clarinet-sdk": "3.9.1",
+    "@stacks/transactions": "6.17.0",
+    "typescript": "^5.3.3",
+    "vitest": "^1.4.0"
+  }
+}
