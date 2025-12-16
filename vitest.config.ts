@@ -5,4 +5,8 @@ export default defineConfig({
     globals: true,
     environment: "node",
   },
+  ssr: {
+    // Bundle clarinet SDK dependencies to avoid CommonJS named export issues
+    noExternal: ["@stacks/clarinet-sdk", "@stacks/clarinet-sdk-wasm"],
+  },
 });

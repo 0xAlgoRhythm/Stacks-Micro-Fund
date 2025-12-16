@@ -1,57 +1,87 @@
-;; Micro Fund - simple community savings pool
-;; - Users deposit STX into the vault
-;; - Admin can release funds to a recipient (community goal)
-;; - Anyone can view balances
+;; Airdrop Token Contract
+;; - Admin mints and airdrops tokens to early adopters
+;; - Users can transfer tokens peer-to-peer
+;; - No STX required for token transfers (only gas fees)
+;; - Minimal on-chain cost for testnet experiments
 
-(define-constant CONTRACT-OWNER 'SP20YJ8M91WMEK83JXMKR7B85Y2N4YNNF2TBNXXJS) ;; TODO: replace with admin principal
-(define-constant MAX-TOKEN-SUPPLY u1000000000) ;; 1,000,000,000 tokens (informational)
+(define-constant CONTRACT-OWNER 'SP20YJ8M91WMEK83JXMKR7B85Y2N4YNNF2TBNXXJS)
+(define-constant TOKEN-NAME "Airdrop Token")
+(define-constant TOTAL-SUPPLY u1000000000) ;; 1 billion tokens
 
 (define-constant ERR-NOT-AUTHORIZED (err u401))
 (define-constant ERR-ZERO-AMOUNT (err u400))
-(define-constant ERR-INSUFFICIENT-VAULT (err u402))
+(define-constant ERR-INSUFFICIENT-BALANCE (err u402))
 (define-constant ERR-TRANSFER-FAILED (err u500))
+(define-constant ERR-INVALID-ADDRESS (err u403))
 
-(define-data-var vault-balance uint u0)             ;; Total STX held in the pool
-(define-map balances principal uint)                ;; Tracks contributions per user
+;; Token state
+(define-data-var total-minted uint u0)
+(define-map token-balances principal uint)
 
 (define-read-only (get-admin)
   CONTRACT-OWNER)
 
+(define-read-only (get-token-name)
+  TOKEN-NAME)
+
+(define-read-only (get-total-supply)
+  TOTAL-SUPPLY)
+
+(define-read-only (get-total-minted)
+  (var-get total-minted))
+
 (define-read-only (get-balance (who principal))
-  (default-to u0 (map-get? balances who)))
+  (default-to u0 (map-get? token-balances who)))
 
-(define-read-only (get-vault-balance)
-  (var-get vault-balance))
-
-(define-read-only (get-contract-balance)
-  (stx-get-balance (as-contract tx-sender)))
-
-(define-public (deposit (amount uint))
-  ;; User deposits STX into the contract vault
-  (begin
-    (asserts! (> amount u0) ERR-ZERO-AMOUNT)
-    (match (stx-transfer? amount tx-sender (as-contract tx-sender))
-      transfer-ok
-        (let
-          (
-            (current (default-to u0 (map-get? balances tx-sender)))
-            (new-total (+ current amount))
-          )
-          (map-set balances tx-sender new-total)
-          (var-set vault-balance (+ (var-get vault-balance) amount))
-          (ok new-total)
-        )
-      transfer-err ERR-TRANSFER-FAILED)))
-
-(define-public (withdraw (recipient principal) (amount uint))
-  ;; Admin-only withdrawal to release funds for community goals
+;; Admin mints tokens (only once, for airdrop distribution)
+(define-public (mint (amount uint))
   (begin
     (asserts! (is-eq tx-sender CONTRACT-OWNER) ERR-NOT-AUTHORIZED)
     (asserts! (> amount u0) ERR-ZERO-AMOUNT)
-    (asserts! (>= (var-get vault-balance) amount) ERR-INSUFFICIENT-VAULT)
-    (match (stx-transfer? amount (as-contract tx-sender) recipient)
-      transfer-ok
-        (begin
-          (var-set vault-balance (- (var-get vault-balance) amount))
-          (ok amount))
-      transfer-err ERR-TRANSFER-FAILED)))
+    (let
+      (
+        (current-minted (var-get total-minted))
+        (new-total (+ current-minted amount))
+      )
+      (asserts! (<= new-total TOTAL-SUPPLY) ERR-INSUFFICIENT-BALANCE)
+      (map-set token-balances CONTRACT-OWNER amount)
+      (var-set total-minted new-total)
+      (ok new-total)
+    )
+  )
+)
+
+;; Admin distributes tokens to single recipient
+(define-public (airdrop-transfer (recipient principal) (amount uint))
+  (begin
+    (asserts! (is-eq tx-sender CONTRACT-OWNER) ERR-NOT-AUTHORIZED)
+    (asserts! (> amount u0) ERR-ZERO-AMOUNT)
+    (asserts! (not (is-eq recipient CONTRACT-OWNER)) ERR-INVALID-ADDRESS)
+    (let
+      (
+        (sender-balance (get-balance CONTRACT-OWNER))
+      )
+      (asserts! (>= sender-balance amount) ERR-INSUFFICIENT-BALANCE)
+      (map-set token-balances CONTRACT-OWNER (- sender-balance amount))
+      (map-set token-balances recipient (+ (get-balance recipient) amount))
+      (ok true)
+    )
+  )
+)
+
+;; Users can transfer tokens peer-to-peer
+(define-public (transfer (to principal) (amount uint))
+  (begin
+    (asserts! (> amount u0) ERR-ZERO-AMOUNT)
+    (asserts! (not (is-eq tx-sender to)) ERR-INVALID-ADDRESS)
+    (let
+      (
+        (from-balance (get-balance tx-sender))
+      )
+      (asserts! (>= from-balance amount) ERR-INSUFFICIENT-BALANCE)
+      (map-set token-balances tx-sender (- from-balance amount))
+      (map-set token-balances to (+ (get-balance to) amount))
+      (ok true)
+    )
+  )
+)

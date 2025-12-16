@@ -25,6 +25,7 @@ Set your admin principal in `CONTRACT-OWNER` at the top of `contracts/micro-fund
 ## Quick start
 ```bash
 cd stacks-micro-fund
+clarinet --version # use Clarinet 4.x
 clarinet console  # optional: inspect
 clarinet check    # type check contract
 ```

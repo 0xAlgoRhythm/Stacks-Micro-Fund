@@ -6,7 +6,8 @@
     "test": "vitest"
   },
   "devDependencies": {
-    "@hirosystems/clarinet-sdk": "^1.0.0-beta.4",
+    "@stacks/clarinet-sdk": "3.9.1",
+    "@stacks/transactions": "6.17.0",
     "typescript": "^5.3.3",
     "vitest": "^1.4.0"
   }
